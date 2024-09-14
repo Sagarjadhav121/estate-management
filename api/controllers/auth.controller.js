@@ -33,3 +33,42 @@ export const signIn = async (req, res, next) => {
     next(error);
   }
 };
+
+export const google = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (user) {
+      //if user already register create token and save it into cokkiens
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRETE);
+      const { password: pass, ...rest } = user._doc;
+      res
+        .cookie("access_token", token, { httpOnly: true })
+        .status(200)
+        .json(rest);
+    } else {
+      //if user not present create new user . create new password because as password is always compulsory in USER SCHEMA
+      const generatedPassword = Math.random().toString(36).slice(-8);
+      //hash the password
+      const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
+
+      const newUser = new User({
+        username:
+          req.body.name.split(" ").join("").toLowerCase() +
+          Math.random().toString(36).slice(-4),
+        email: req.body.email,
+        password: hashedPassword,
+        avatar: req.body.photo,
+      });
+      newUser.save();
+      const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRETE);
+      const { password: pass, ...rest } = newUser._doc;
+      res
+        .cookie("access_token", token, { httpOnly: true })
+        .status(200)
+        .json(rest);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
